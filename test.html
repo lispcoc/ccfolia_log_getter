@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="jquery-3.5.1.min.js"></script>
+  <script>
+    var request = new XMLHttpRequest();
+    var documents = [];
+    const base_url = 'https://firestore.googleapis.com/v1/projects/ccfolia-160aa/databases/(default)/documents/rooms/Io_3118zv/messages/?pageSize=300&pageToken=';
+    request.open('GET', base_url, true);
+    request.responseType = 'json';
+ 
+    request.onload = function () {
+        var data = this.response;
+        console.log(data);
+
+        for(const d of data.documents) {
+            documents.push(d);
+        }
+
+        if (data.nextPageToken) {
+            request.open('GET', base_url + data.nextPageToken, true);
+            request.responseType = 'json';
+            request.send();
+        } else {
+            documents.sort(function(a,b){
+                if( a.createTime < b.createTime ) return -1;
+                if( a.createTime > b.createTime ) return 1;
+                return 0;
+            });
+            documents.forEach(function(e){
+                if(e.fields.channel.stringValue == 'main') {
+                    console.log("a");
+                    var color = e.fields.color.stringValue;
+                    var string = "";
+                    string += '<span>' + e.fields.name.stringValue + '</span> :'
+                    string += '<span>' + e.fields.text.stringValue + '</span> :'
+                    var tag = $('<p style="color:' + color + ';">').append(string);
+                    $('#main').append(tag);
+                }
+            });
+            $('#progress').text("End");
+            console.log(documents);
+        }
+    };
+    request.send();
+
+    function convertToHTML(elem) {
+            return jQuery('<div>').append(elem.clone(true)).html();
+        }
+
+    $(document).on('click', "[id^='file2']", function () {
+            var header = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>チャットログ</title></head><body>';
+            var main = convertToHTML($('#main'));
+            var footer = '</body></html>';
+            var doc = header + main + footer;
+            var blob = new Blob([doc], { "type": "text/plain" });
+            $("<a></a>", {
+                href: window.URL.createObjectURL(blob),
+                download: "log.html",
+                target: "_blank"
+            })[0].click();
+    });
+    $(document).on('click', "[id^='file3']", function () {
+            var doc = JSON.stringify(documents, null , "    ");
+            var blob = new Blob([doc], { "type": "text/plain" });
+            $("<a></a>", {
+                href: window.URL.createObjectURL(blob),
+                download: "log.json",
+                target: "_blank"
+            })[0].click();
+    });
+  </script>
+  </head>
+  <body>
+    <input type="button" id="file2" value="保存(HTML)">
+    <input type="button" id="file3" value="保存(JSON)">
+      <div id="progress">処理中...</div>
+      <div id="main"></div>
+  </body>
+</html>
