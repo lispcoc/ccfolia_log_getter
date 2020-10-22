@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>ccfolia log getter</title>
+    <script src="jquery-3.5.1.min.js"></script>
+    <script>
+        var request = new XMLHttpRequest();
+        var message_json = [];
+        var tab_list = {};
+        var current_room_id = "";
+
+        function get_url(room_id, token = "", size = 300) {
+            const base_url = 'https://firestore.googleapis.com/v1/projects/ccfolia-160aa/databases/(default)/documents/rooms/';
+            return base_url + room_id + '/messages/' + '?pageSize=' + size + '&pageToken=' + token;
+        }
+
+        function get_current_tab() {
+            return $('[name="html_selector"]:radio:checked').val();
+        }
+
+        function get_tab_dom_id(tab_id) {
+            return '#__tab__' + tab_id;
+        }
+
+        function process_messages(json) {
+            json.sort(function(a, b) {
+                if (a.createTime < b.createTime) return -1;
+                if (a.createTime > b.createTime) return 1;
+                return 0;
+            });
+            tab_list = {};
+            var tab_doms = {};
+            $('#html').text("");
+            $('#html_selector').text("");
+            json.forEach(function(e) {
+                const tab_id = e.fields.channel.stringValue;
+                const tab_name = e.fields.channelName.stringValue;
+                if (!(tab_id in tab_list)) {
+                    tab_list[tab_id] = tab_name;
+                    tab_doms[tab_id] = $("<div></div>", {
+                        id: '__tab__' + tab_id
+                    });
+                    $('#html_selector')
+                        .append($("<input>", {
+                            type: 'radio',
+                            name: 'html_selector',
+                            value: tab_id,
+                            checked: tab_id == 'main'
+                        }))
+                        .append($("<label>", {
+                            for: tab_id
+                        }).text(tab_name));
+                }
+
+                if (e.fields.text.stringValue != '') {
+                    var string = '<span>' + e.fields.name.stringValue + '</span> :';
+                    string += '<span>' + e.fields.text.stringValue + '</span>';
+                    var tag = $('<p style="color:' + e.fields.color.stringValue + ';">').append(string);
+                    $(tab_doms[tab_id]).append(tag);
+                }
+            });
+            for (const tab_id in tab_doms) {
+                $('#html').append(tab_doms[tab_id]);
+                if (tab_id != 'main') {
+                    $('#__tab__' + tab_id).hide();
+                }
+            }
+            $('[name="html_selector"]:radio').change(function() {
+                const show_tab_id = get_current_tab();
+                for (const tab_id in tab_list) {
+                    if (tab_id == show_tab_id) {
+                        $(get_tab_dom_id(tab_id)).show();
+                    } else {
+                        $(get_tab_dom_id(tab_id)).hide();
+                    }
+                }
+            });
+            $('#progress').text("完了");
+        }
+
+        function convertToHTML(elem) {
+            return jQuery('<div>').append(elem.clone(true)).html();
+        }
+
+        function http_request_callback() {
+            console.log(this);
+            const data = this.response;
+            for (const d of data.documents) {
+                message_json.push(d);
+            }
+            $('#log_number').text(message_json.length + "件");
+            if (data.nextPageToken) {
+                this.open('GET', get_url(current_room_id, data.nextPageToken), true);
+                this.responseType = 'json';
+                this.send();
+            } else {
+                $('#progress').text("HTML生成中...");
+                setTimeout(() => {
+                    process_messages(message_json);
+                }, 1);
+                this.removeEventListener("load", http_request_callback);
+            }
+        }
+
+        $(function() {
+            // ボタン：ログを取得
+            $('#get_log').click(function(e) {
+                $("#progress").text('取得中...');
+                current_room_id = $('#room_id').val();
+                message_json.splice(0);
+
+                request.open('GET', get_url(current_room_id), true);
+                request.responseType = 'json';
+                request.send();
+                request.addEventListener("load", http_request_callback);
+            });
+
+            // ボタン：保存(HTML)
+            $('#save_html').click(function(e) {
+                var header = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>チャットログ</title></head><body>';
+                var main = convertToHTML($(get_tab_dom_id(get_current_tab())));
+                var footer = '</body></html>';
+                var doc = header + main + footer;
+                var blob = new Blob([doc], {
+                    "type": "text/html"
+                });
+                $("<a></a>", {
+                    href: window.URL.createObjectURL(blob),
+                    download: "log_" + current_room_id + "_" + tab_list[get_current_tab()] + ".html",
+                    target: "_blank"
+                })[0].click();
+            });
+
+            // ボタン：保存(JSON)
+            $('#save_json').click(function(e) {
+                var doc = JSON.stringify(message_json, null, "    ");
+                var blob = new Blob([doc], {
+                    "type": "text/json"
+                });
+                $("<a></a>", {
+                    href: window.URL.createObjectURL(blob),
+                    download: "log_" + current_room_id + ".json",
+                    target: "_blank"
+                })[0].click();
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <input type="text" id="room_id" placeholder="ルームIDを入力">
+    <input type="button" id="get_log" value="ログを取得">
+    <input type="button" id="save_html" value="保存(HTML)">
+    <input type="button" id="save_json" value="保存(JSON)">
+    <div>
+        <span id="progress"></span>
+        <span id="log_number"></span>
+    </div>
+    <form id="html_selector"></form>
+    <div id="html"></div>
+</body>
+
+</html>
