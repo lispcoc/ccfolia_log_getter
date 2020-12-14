@@ -9,6 +9,8 @@
         var message_json = [];
         var tab_list = {};
         var current_room_id = "";
+        const RET = '\n';
+        const CRLF = '\r\n';
 
         function get_url(room_id, token = "", size = 300) {
             const base_url = 'https://firestore.googleapis.com/v1/projects/ccfolia-160aa/databases/(default)/documents/rooms/';
@@ -31,8 +33,27 @@
             });
             tab_list = {};
             var tab_doms = {};
+            var all_dom = $("<div></div>", {
+                id: '__tab__all'
+            });;
             $('#html').text("");
             $('#html_selector').text("");
+
+            tab_list['all'] = '全件';
+            tab_doms['all'] = $("<div></div>", {
+                id: '__tab__' + 'all'
+            });
+            $('#html_selector')
+                .append($("<input>", {
+                    type: 'radio',
+                    name: 'html_selector',
+                    value: 'all',
+                    checked: true
+                }))
+                .append($("<label>", {
+                    for: 'all'
+                }).text('全件'));
+
             json.forEach(function(e) {
                 const tab_id = e.fields.channel.stringValue;
                 const tab_name = e.fields.channelName.stringValue;
@@ -46,7 +67,7 @@
                             type: 'radio',
                             name: 'html_selector',
                             value: tab_id,
-                            checked: tab_id == 'main'
+                            checked: false
                         }))
                         .append($("<label>", {
                             for: tab_id
@@ -54,15 +75,29 @@
                 }
 
                 if (e.fields.text.stringValue != '') {
-                    var string = '<span>' + e.fields.name.stringValue + '</span> :';
-                    string += '<span>' + e.fields.text.stringValue + '</span>';
-                    var tag = $('<p style="color:' + e.fields.color.stringValue + ';">').append(string);
-                    $(tab_doms[tab_id]).append(tag);
+                    var text = e.fields.text.stringValue.split(/\r?\n/);
+                    text = text.join('<br>' + RET + '    ');
+                    string = RET + '<p style="color:' + e.fields.color.stringValue + ';">' + RET;
+                    string += '  <span> [' + tab_name + ']</span> :' + RET;
+                    string += '  <span>' + e.fields.name.stringValue + '</span> :' + RET;
+                    string += '  <span>' + RET;
+                    string += '    ' + text + RET;
+                    string += '  </span>' + RET;
+                    string += '</p>' + RET;
+                    $(tab_doms['all']).append(string);
+
+                    string = RET + '<p style="color:' + e.fields.color.stringValue + ';">' + RET;
+                    string += '  <span>' + e.fields.name.stringValue + '</span> :' + RET;
+                    string += '  <span>' + RET;
+                    string += '    ' + text + RET;
+                    string += '  </span>' + RET;
+                    string += '</p>' + RET;
+                    $(tab_doms[tab_id]).append(string);
                 }
             });
             for (const tab_id in tab_doms) {
                 $('#html').append(tab_doms[tab_id]);
-                if (tab_id != 'main') {
+                if (tab_id != 'all') {
                     $('#__tab__' + tab_id).hide();
                 }
             }
@@ -118,10 +153,13 @@
 
             // ボタン：保存(HTML)
             $('#save_html').click(function(e) {
-                var header = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>チャットログ</title></head><body>';
+                var header = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>チャットログ</title></head><body>' + RET;
                 var main = convertToHTML($(get_tab_dom_id(get_current_tab())));
-                var footer = '</body></html>';
+                var footer = RET + '</body></html>';
                 var doc = header + main + footer;
+                // LF => CRLF
+                doc = doc.split(/\r?\n/);
+                doc = doc.join(CRLF);
                 var blob = new Blob([doc], {
                     "type": "text/html"
                 });
