@@ -12,6 +12,17 @@
         const RET = '\n';
         const CRLF = '\r\n';
 
+        function get_property(obj, properties) {
+            for (const p of properties) {
+                if (p in obj) {
+                    obj = obj[p];
+                } else {
+                    return null;
+                }
+            }
+            return obj;
+        }
+
         function get_url(room_id, token = "", size = 300) {
             const base_url = 'https://firestore.googleapis.com/v1/projects/ccfolia-160aa/databases/(default)/documents/rooms/';
             return base_url + room_id + '/messages/' + '?pageSize=' + size + '&pageToken=' + token;
@@ -75,8 +86,17 @@
                 }
 
                 if (e.fields.text.stringValue != '') {
+                    // Dice Roll
+                    var roll = get_property(
+                        e.fields, ["extend", "mapValue", "fields", "roll", "mapValue", "fields", "result", "stringValue"]
+                    );
+                    if (!roll) {
+                        roll = "";
+                    }
+                    roll.replace(/\r?\n/, '');
                     var text = e.fields.text.stringValue.split(/\r?\n/);
-                    text = text.join('<br>' + RET + '    ');
+                    text = text.join('<br>' + RET + '    ') + roll;
+
                     string = RET + '<p style="color:' + e.fields.color.stringValue + ';">' + RET;
                     string += '  <span> [' + tab_name + ']</span> :' + RET;
                     string += '  <span>' + e.fields.name.stringValue + '</span> :' + RET;
