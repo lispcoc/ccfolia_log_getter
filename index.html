@@ -97,21 +97,21 @@
                     var text = e.fields.text.stringValue.split(/\r?\n/);
                     text = text.join('<br>' + RET + '    ') + roll;
 
-                    string = RET + '<p style="color:' + e.fields.color.stringValue + ';">' + RET;
+                    string = RET + '<div style="color:' + e.fields.color.stringValue + ';">' + RET;
                     string += '  <span> [' + tab_name + ']</span> :' + RET;
                     string += '  <span>' + e.fields.name.stringValue + '</span> :' + RET;
                     string += '  <span>' + RET;
                     string += '    ' + text + RET;
                     string += '  </span>' + RET;
-                    string += '</p>' + RET;
+                    string += '</div>' + RET;
                     $(tab_doms['all']).append(string);
 
-                    string = RET + '<p style="color:' + e.fields.color.stringValue + ';">' + RET;
+                    string = RET + '<div style="color:' + e.fields.color.stringValue + ';">' + RET;
                     string += '  <span>' + e.fields.name.stringValue + '</span> :' + RET;
                     string += '  <span>' + RET;
                     string += '    ' + text + RET;
                     string += '  </span>' + RET;
-                    string += '</p>' + RET;
+                    string += '</div>' + RET;
                     $(tab_doms[tab_id]).append(string);
                 }
             });
